@@ -1,0 +1,302 @@
+<html>
+
+<head>
+<link rel="stylesheet" href="audio.css">
+<script>
+function cddbSearch(id)
+{
+	const cat = ['blues', 'classical', 'country', 'data', 'folk', 'jazz', 'newage', 'reggae', 'rock', 'soundtrack', 'misc'];
+	
+	for(i = 0; i < cat.length; i++)
+	{
+		var xhr = new XMLHttpRequest();
+		xhr.open("get", 'http://gnudb.org/gnudb/' + cat[i] + '/' + id);
+		xhr.send();
+		//var xmlDoc = xhr.responseXML;
+		//window.open('https://gnudb.org/gnudb/' + cat[i] + '/' + id, '_blank');
+		xhr.onload = function() { alert('${xhr.status}: ${xhr.statusText}') };
+	}
+}
+
+function convertOffset(offset)
+{
+	let frames = parseInt(offset % 75);
+	let seconds = parseInt((offset / 75) % 60);
+	let minutes = parseInt((offset / 75) / 60);
+	
+	return padZero(minutes) + ':' + padZero(seconds) + ':' + padZero(frames);
+}
+function padZero(digit)
+{
+	if (digit < 10)
+	{
+		digit = '0' + digit;
+	}
+	
+	return digit;
+}
+
+function genCellTitles(infoTable)
+{
+	let celltitles = ['#', 'type', 'start', 'length', 'crc32', 'w/o null', 'peak'];
+	row = document.createElement('tr');
+	infoTable.appendChild(row);
+	row.setAttribute('id', 'cell-title');
+			
+	for( title = 0; title < celltitles.length; title++)
+	{
+		cell = document.createElement('td');
+		row.appendChild(cell);
+		cell.innerText = celltitles[title];
+	}
+}
+
+function showDetail(id)
+{
+	mainrow = document.getElementById(id);
+	if(mainrow.getAttribute('show') == 0)
+	{
+		mainrow.setAttribute('show', '1');
+
+		var xhr = new XMLHttpRequest();
+		xhr.open("get", "entry/" + id + ".xml", false);
+		xhr.send();
+		var xmlDoc = xhr.responseXML;
+		
+		let infoRow = document.createElement('tr');
+		infoRow.setAttribute('id', id + '-detail');
+
+		let infoRowCell = document.createElement('td');
+		infoRowCell.setAttribute('colspan', '4');
+		
+		infoRow.appendChild(infoRowCell);
+		mainrow.parentNode.insertBefore(infoRow, mainrow.nextSibling);
+		
+		let infoTable = document.createElement('table');
+		infoTable.setAttribute('id', 'discinfo');
+		infoTable.setAttribute('align', 'center');
+		infoRowCell.appendChild(infoTable);
+		
+		let discs = xmlDoc.getElementsByTagName('disc');
+
+		for(disc = 0; disc < discs.length; disc++)
+		{
+			discid = discs[disc].getAttribute('id');
+			
+			discRow = document.createElement('tr');
+			infoTable.appendChild(discRow);
+			/*
+			discCell = document.createElement('td');
+			discRow.appendChild(discCell);
+			discCell.innerText = 'Disc';
+			*/
+			discCellCTDB = document.createElement('td');
+			discCellCTDB.setAttribute('colspan', '7');
+			discCellCTDB.setAttribute('id', 'url-info');
+			discCellCTDB.innerText = 'Disc information';
+			discRow.appendChild(discCellCTDB);
+			discCellCTDB.innerHTML += '<a href="' + 'http://db.cuetools.net/?tocid=' + discs[disc].getAttribute('cuetools') + '" target="_blank" ><img id="icon" src="cue.svg" alt="CTDB"></a>';
+			discCellCTDB.innerHTML += '<a href="' + 'http://gnudb.org/cd/' + discs[disc].getAttribute('freedb') + '" target="_blank" ><img id="icon" src="gnu.svg" alt="GNUDB"></a>';
+			
+			genCellTitles(infoTable);
+
+			var tracks = discs[disc].getElementsByTagName('track');
+			
+			for(i = 0; i < tracks.length; i++)
+			{
+				let infoTableRow = document.createElement('tr');
+				infoTable.appendChild(infoTableRow);
+				
+				const vars = [i + 1, 'type', 'offset', 'length', 'crc32', 'wonull', 'peak' ];
+				
+				for(v = 0; v < vars.length; v++)
+				{
+					let infoTableTD = document.createElement('td');
+					infoTableRow.appendChild(infoTableTD);
+
+					if(v==0) {infoTableTD.innerText = vars[v];}
+					else if(vars[v] == 'offset' || vars[v] == 'length') {infoTableTD.innerText = convertOffset(tracks[i].getAttribute(vars[v]));}
+					else {infoTableTD.innerText = tracks[i].getAttribute(vars[v]);}
+				}
+			}
+			
+			discTotalRow = document.createElement('tr');
+			infoTable.appendChild(discTotalRow);
+			
+			discTotalCell0 = document.createElement('td');
+			discTotalRow.appendChild(discTotalCell0);
+			discTotalCell0.setAttribute('colspan', '3');
+			
+			discTotalCell00 = document.createElement('td');
+			discTotalRow.appendChild(discTotalCell00);
+			discTotalCell00.innerText = convertOffset(discs[disc].getAttribute('length'));
+			
+			//discTotalCell000 = document.createElement('td');
+			//discTotalRow.appendChild(discTotalCell000);
+			
+			discTotalCell1 = document.createElement('td');
+			discTotalRow.appendChild(discTotalCell1);
+			discTotalCell1.innerText = discs[disc].getAttribute('crc32');
+			
+			discTotalCell2 = document.createElement('td');
+			discTotalRow.appendChild(discTotalCell2);
+			discTotalCell2.innerText = discs[disc].getAttribute('wonull');
+			
+			discTotalCell3 = document.createElement('td');
+			discTotalRow.appendChild(discTotalCell3);
+			discTotalCell3.innerText = discs[disc].getAttribute('peak');
+		}
+	}
+	else
+	{
+		mainrow.setAttribute('show', '0');
+
+		infoRow = document.getElementById(id + '-detail');
+		
+		mainrow.parentNode.removeChild(infoRow);
+	}
+}
+
+function sort(direction)
+{
+	let mainTable = document.getElementById('mainTable');
+	let rows = mainTable.getElementsByTagName('tr');
+	
+	for (i = rows.length - 1; i > 0; i--)
+	{
+		if (rows[i].getAttribute('show') == '1')
+		{
+			rows[i].parentNode.removeChild(rows[i].nextSibling);
+			rows[i].setAttribute('show', '0');
+		}
+	}
+	
+	rows = mainTable.getElementsByTagName('tr');
+	
+	let sorted = false;
+	
+	while (sorted == false)
+	{
+		sorted = true;
+		for (i = 1; i < rows.length - 1; i++)
+		{
+			if (rows[i + 1].getElementsByTagName('td')[0].innerText.toLowerCase() < rows[i].getElementsByTagName('td')[0].innerText.toLowerCase())
+			{
+				rows[i].parentNode.insertBefore(rows[i + 1], rows[i]);
+				sorted = false;
+			}
+		}
+	}
+}
+
+function getMainTable()
+{
+	var xhr = new XMLHttpRequest();
+	xhr.open("get", "index.xml", false);
+	xhr.send();
+
+	var xmlDoc = xhr.responseXML;
+	
+	mainTable = document.getElementById('table');
+
+	var formTable = '<table id="mainTable">';
+	
+	formTable += '<tr><td>title <a href="#" onclick=sort("asc") ><img src="up.svg" /></a><img src="down.svg" /></td><td>media</td><td>year</td><td>catalog</td></tr>';
+	
+	albums = xmlDoc.getElementsByTagName('album');
+
+	for(i = 0; i < albums.length; i++)
+	{
+		var name = albums[i].getAttribute('title');
+		var id = albums[i].getAttribute('id');
+		
+		formTable += '<tr id="' + id + '" show="0" onclick="showDetail(\'' + id + '\')" >';
+		
+		var cdCount = null;
+		var year = null;
+		var catNo = null;
+		
+		tagCount = name.match(/\([\S]+\)/g);
+
+		title = (/.*(?= \([0-9]{4}\))/).exec(name).toString();
+		title = title.replace(/ \([0-9]{1,}CD\)/, '');
+		cdCount = name.match(/(?<=\()[0-9]{1,}(?=CD\) \([0-9]{4}\))/);
+		year = name.match(/(?<=\()[0-9]{4}(?=\))/);
+		catNo = name.match(/(?<=\([0-9]{4}\) \()[\S]+(?=\))/);
+
+		formTable += '<td>' + title + '</td>';
+		formTable += '<td>' + ((cdCount == null) ? 1 : cdCount) + '</td>';
+		formTable += '<td>' + year + '</td>';
+		formTable += '<td>' + ((catNo == null) ? 'N/A' : catNo) + '</td>';
+
+		formTable += '</tr>';
+	}
+	
+	formTable += '</table>';
+	
+	mainTable.innerHTML = formTable;
+	
+	//sort('asc');
+	genTotal();
+}
+
+function genTotal()
+{
+	let mainTable = document.getElementById('mainTable');
+	let rows = mainTable.getElementsByTagName('tr');
+	
+	let totalAlbums = rows.length - 1;
+	let totalDiscs = 0;
+	
+	for (i = 1; i < rows.length; i++)
+	{
+		totalDiscs += parseInt(rows[i].getElementsByTagName('td')[1].innerText);
+	}
+	
+	totalDiv = document.getElementById('total');
+	totalTable = document.createElement('table');
+	totalDiv.appendChild(totalTable);
+	
+	for (i = 0; i < 2; i++)
+	{
+		row = document.createElement('tr');
+		totalTable.appendChild(row);
+		
+		for (j = 0; j < 2; j++)
+		{
+			cell = document.createElement('td');
+			row.appendChild(cell);
+			
+			if (i == 0 && j == 0)
+			{
+				cell.innerText = 'Total albums';
+			}
+			if (i == 0 && j == 1)
+			{
+				cell.innerText = totalAlbums;
+			}
+			if (i == 1 && j == 0)
+			{
+				cell.innerText = 'Total discs';
+			}
+			if (i == 1 && j == 1)
+			{
+				cell.innerText = totalDiscs;
+			}
+		}
+	}
+}
+
+</script>
+
+</head>
+
+<body onload ="getMainTable()" >
+
+<div id="table" ></div>
+
+<div id="total" ></div>
+
+</body>
+
+</html>
